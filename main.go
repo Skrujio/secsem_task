@@ -11,41 +11,11 @@ import (
 )
 
 func main() {
-
-	// 	input := `{
-	//   "id": 1,
-	//   "replies": [
-	//     {
-	//       "id": 2,
-	//       "replies": []
-	//     },
-	//     {
-	//       "id": 3,
-	//       "replies": [
-	//         {
-	//           "id": 4,
-	//           "replies": []
-	//         },
-	//         {
-	//           "id": 5,
-	//           "replies": []
-	//         }
-	//       ]
-	//     }
-	//   ]
-	// }`
-
-	// scanner := bufio.NewScanner(os.Stdin)
-	// scanner.Scan()
-	// text := scanner.Text()
-	// fmt.Println(text)
-
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		panic(err)
 	}
 	text := string(bytes)
-	// fmt.Println(text)
 
 	slices, ids, spaces := processInput(text)
 
@@ -54,28 +24,43 @@ func main() {
 	for i := range ids {
 		fmt.Printf("%s%s\"body\": %q,", slices[i], spaces[i], messages[i])
 	}
+
 	fmt.Printf(slices[len(slices)-1])
 }
 
 func processInput(input string) ([]string, []int, []string) {
+	slices := getTextSlices(input)
+	ids := getIds(input)
+	spaces := getSpacesBeforeIds(input)
 
-	re2 := regexp.MustCompile(`[0-9]+,`)
-	ind2 := re2.FindAllStringIndex(input, -1)
+	return slices, ids, spaces
+}
+
+func getTextSlices(input string) []string {
+	idsRe := regexp.MustCompile(`[0-9]+,`)
+	idsReIndices := idsRe.FindAllStringIndex(input, -1)
 
 	var slices []string
 
-	slices = append(slices, input[0:ind2[0][1]])
+	slices = append(slices, input[0:idsReIndices[0][1]])
 
-	for i := range ind2[1:] {
-		slices = append(slices, input[ind2[i][1]:ind2[i+1][1]])
+	for i := range idsReIndices[1:] {
+		slices = append(slices, input[idsReIndices[i][1]:idsReIndices[i+1][1]])
 	}
 
-	slices = append(slices, input[ind2[len(ind2)-1][1]:])
+	slices = append(slices, input[idsReIndices[len(idsReIndices)-1][1]:])
+
+	return slices
+}
+
+func getIds(input string) []int {
+	idsRe := regexp.MustCompile(`[0-9]+`)
+	idsReIndices := idsRe.FindAllStringIndex(input, -1)
 
 	var ids []int
 
-	for _, v := range ind2 {
-		nb, err := strconv.Atoi(input[v[0] : v[1]-1])
+	for _, v := range idsReIndices {
+		nb, err := strconv.Atoi(input[v[0]:v[1]])
 		if err != nil {
 			panic(err)
 		}
@@ -83,16 +68,25 @@ func processInput(input string) ([]string, []int, []string) {
 		ids = append(ids, nb)
 	}
 
-	re3 := regexp.MustCompile(`\s+"id"`)
-	ind3 := re3.FindAllStringIndex(input, -1)
+	return ids
+}
 
-	spaces := make([]string, len(ids))
+func getSpacesBeforeIds(input string) []string {
+	spacesRe := regexp.MustCompile(`\s+"id"`)
+	spacesReIndices := spacesRe.FindAllStringIndex(input, -1)
 
-	for i, v := range ind3 {
-		spaces[i] = input[v[0] : v[1]-4]
+	var spaces []string
+
+	for _, v := range spacesReIndices {
+		spaces = append(spaces, input[v[0]:v[1]-4])
 	}
 
-	return slices, ids, spaces
+	return spaces
+}
+
+type Data struct {
+	ArrayId int
+	Body    string `json:"body"`
 }
 
 func getMessages(ids []int) []string {
@@ -127,9 +121,4 @@ func getMessages(ids []int) []string {
 	}
 
 	return result
-}
-
-type Data struct {
-	ArrayId int
-	Body    string `json:"body"`
 }
